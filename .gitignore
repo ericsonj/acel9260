@@ -1,0 +1,9 @@
+*.dwo
+*.cmd
+.vscode/
+*.ko
+*.o
+.tmp_versions/
+*.symvers
+acel9260.mod.c
+*.order
