@@ -6,6 +6,7 @@
 #include <linux/i2c.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
+#include "acel9260.h"
 #define DEVICE_NAME "acel9260" ///< The device will appear at /dev/acel9260 using this value
 #define CLASS_NAME "acel"      ///< The device class -- this is a character device driver
 
@@ -42,15 +43,36 @@ static const struct of_device_id acel9260_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, acel9260_of_match);
 
+
+static int acel9260GetData(struct i2c_client *client, u8 regAddr, u8 *buff, u16 len)
+{
+    
+    int rv;
+    struct i2c_msg msgs[2];
+    u8 reg = regAddr;
+
+    msgs[0].addr = client->addr;
+    msgs[0].flags = 0; /* write */
+    msgs[0].buf = &reg;
+    msgs[0].len = 1;
+
+    msgs[1].addr = client->addr;
+    msgs[1].flags = I2C_M_RD;
+    msgs[1].buf = buff;
+    msgs[1].len = len;
+
+    rv = i2c_transfer(client->adapter, msgs, 2);
+
+    return rv;
+}
+
 /* Add your code here */
 static int acel9260_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
     int rv;
     char buf[2];
-    u8 data[2];
+    u8 data[6];
     int16_t count;
-    struct i2c_msg msgs[2];
-    u8 reg = 0x41;
 
     pr_info("acel9260_probe\n");
 
@@ -128,23 +150,20 @@ static int acel9260_i2c_probe(struct i2c_client *client, const struct i2c_device
 
     // Read Temperature
     // #define REG_TEMPERATURE         0x41
-
-    msgs[0].addr = client->addr;
-    msgs[0].flags = 0; /* write */
-    msgs[0].buf = &reg;
-    msgs[0].len = 1;
-
-    msgs[1].addr = client->addr;
-    msgs[1].flags = I2C_M_RD;
-    msgs[1].buf = data;
-    msgs[1].len = 2;
-
-    rv = i2c_transfer(client->adapter, msgs, 2);
-
+    rv = acel9260GetData(client, REG_TEMPERATURE, data, 2);
     count = (((int16_t)data[0]) << 8) | data[1];
     count = ((count - 21) / 334) + 21;
-
     pr_info("Read temp: %d data: 0x%02X 0x%02X temp: %d C\n", rv, data[0], data[1], count);
+
+    // Read Accelerometer
+    // #define REG_ACCELEROMETER        0x3B
+    rv = acel9260GetData(client, REG_ACCELEROMETER, data, 6);
+    pr_info("Read acel: %d data: 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\n", rv, data[0], data[1], data[2], data[3], data[4], data[5]);
+
+    // Read Gyroscope
+    // #define REG_GYROSCOPE            0x44
+    rv = acel9260GetData(client, REG_GYROSCOPE, data, 6);
+    pr_info("Read gyro: %d data: 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X\n", rv, data[0], data[1], data[2], data[3], data[4], data[5]);
 
     return 0;
 }
