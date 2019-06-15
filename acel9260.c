@@ -16,6 +16,7 @@ static short size_of_message;                ///< Used to remember the size of t
 static int numberOpens = 0;                  ///< Counts the number of times the device is opened
 static struct class *acelcharClass = NULL;   ///< The device-driver class struct pointer
 static struct device *acelcharDevice = NULL; ///< The device-driver device struct pointer
+static struct i2c_client *i2cClient = NULL;
 
 static int dev_open(struct inode *, struct file *);
 static int dev_release(struct inode *, struct file *);
@@ -73,6 +74,7 @@ static int acel9260_i2c_probe(struct i2c_client *client, const struct i2c_device
     char buf[2];
     u8 data[6];
     int16_t count;
+    i2cClient = client;
 
     pr_info("acel9260_probe\n");
 
@@ -211,12 +213,24 @@ static int dev_open(struct inode *inodep, struct file *filep){
  */
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset){
    int error_count = 0;
+   int rv;
+
+    if (i2cClient != NULL) {
+        rv = acel9260GetData(i2cClient, REG_TEMPERATURE, message, 2);
+        size_of_message = 2;
+        rv = acel9260GetData(i2cClient, REG_ACCELEROMETER, (message+2), 6);
+        size_of_message += 6;
+        rv = acel9260GetData(i2cClient, REG_GYROSCOPE, (message+8), 6);
+        size_of_message += 6;
+    }
+    message[8] = '\n';
+
    // copy_to_user has the format ( * to, *from, size) and returns 0 on success
    error_count = copy_to_user(buffer, message, size_of_message);
  
    if (error_count==0){            // if true then have success
       printk(KERN_INFO "acelChar: Sent %d characters to the user\n", size_of_message);
-      return (size_of_message=0);  // clear the position to the start and return 0
+      return size_of_message;  // clear the position to the start and return 0
    }
    else {
       printk(KERN_INFO "acelChar: Failed to send %d characters to the user\n", error_count);
@@ -235,13 +249,13 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset){
    // sprintf(message, "%s(%zu letters)", buffer, len);   // appending received string with its length
    // size_of_message = strlen(message);                 // store the length of the stored message
-   int error_count = 0;
-   error_count = copy_from_user(message, buffer, len);
-   if (error_count == 0) {
-       printk(KERN_INFO "acelChar: write %s\n", message);
-       size_of_message = strlen(message);
-   }
-   printk(KERN_INFO "acelChar: Received %zu characters from the user\n", len);
+//    int error_count = 0;
+//    error_count = copy_from_user(message, buffer, len);
+//    if (error_count == 0) {
+//        printk(KERN_INFO "acelChar: write %s\n", message);
+//        size_of_message = strlen(message);
+//    }
+   printk(KERN_INFO "acelChar: Not support yet.\n", len);
    return len;
 }
 
