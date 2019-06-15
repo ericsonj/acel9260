@@ -1,0 +1,5 @@
+BasedOnStyle: LLVM
+Language: Cpp
+IndentWidth: 8
+UseTab: Always
+BreakBeforeBraces: Linux
